@@ -43,7 +43,14 @@ go build -o akita_demo .
 ./akita_demo
 ```
 
-The simulation will run for 20 seconds of simulated time, showing:
+By default, the simulation will run for 20 seconds of simulated time. You can specify a different duration using the `-cycles` flag:
+
+```bash
+./akita_demo -cycles 10   # Run for 10 seconds
+./akita_demo -cycles 50   # Run for 50 seconds
+```
+
+The simulation will show:
 - When the producer generates messages
 - How the distributor routes messages to specific consumers
 - When each consumer processes its messages
@@ -52,6 +59,7 @@ The simulation will run for 20 seconds of simulated time, showing:
 
 ```
 === Starting Akita Demo Simulation ===
+Simulation Duration: 20 cycles (seconds)
 Producer: Randomly generates messages (30% chance per tick)
 Distributor: Routes messages to correct consumer
 Consumers: Process messages at fixed rate (1 per second)
@@ -63,6 +71,12 @@ Consumers: Process messages at fixed rate (1 per second)
 [8.00] Distributor: Routed message to Consumer2
 ...
 ```
+
+## Command-Line Options
+
+- `-cycles <number>`: Set the simulation duration in cycles (seconds). Default is 20.
+  - Example: `./akita_demo -cycles 10`
+- `-h`: Display help message with all available options.
 
 ## Key Implementation Details
 

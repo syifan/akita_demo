@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"math/rand"
@@ -193,14 +194,18 @@ func (c *Consumer) Tick(now sim.VTimeInSec) bool {
 }
 
 func main() {
+	// Parse command-line flags
+	cycles := flag.Int("cycles", 20, "Number of simulation cycles (seconds) to run")
+	flag.Parse()
+	
 	// Create simulation engine
 	engine := sim.NewSerialEngine()
 	
 	// Define consumers
 	consumerNames := []string{"Consumer1", "Consumer2", "Consumer3"}
 	
-	// Create components with 20 second stop time
-	producer := NewProducer("Producer", engine, consumerNames, 20.0)
+	// Create components with configurable stop time
+	producer := NewProducer("Producer", engine, consumerNames, sim.VTimeInSec(*cycles))
 	distributor := NewDistributor("Distributor", engine, consumerNames)
 	
 	// Set producer's destination to distributor's input port
@@ -240,6 +245,7 @@ func main() {
 	
 	// Run simulation
 	fmt.Println("=== Starting Akita Demo Simulation ===")
+	fmt.Printf("Simulation Duration: %d cycles (seconds)\n", *cycles)
 	fmt.Println("Producer: Randomly generates messages (30% chance per tick)")
 	fmt.Println("Distributor: Routes messages to correct consumer")
 	fmt.Println("Consumers: Process messages at fixed rate (1 per second)")
