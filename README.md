@@ -29,7 +29,7 @@ Distributor (routes by destination)
 
 ### Prerequisites
 
-- Go 1.16 or later
+- Go 1.22 or later
 
 ### Build
 

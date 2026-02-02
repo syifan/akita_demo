@@ -1,6 +1,6 @@
 module github.com/syifan/akita_demo
 
-go 1.24.12
+go 1.22
 
 require github.com/sarchlab/akita/v3 v3.1.0
 
