@@ -198,6 +198,11 @@ func main() {
 	cycles := flag.Int("cycles", 20, "Number of simulation cycles (seconds) to run")
 	flag.Parse()
 	
+	// Validate cycles value
+	if *cycles <= 0 {
+		log.Fatal("Error: cycles must be a positive number")
+	}
+	
 	// Create simulation engine
 	engine := sim.NewSerialEngine()
 	
