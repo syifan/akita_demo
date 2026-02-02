@@ -107,27 +107,31 @@ func NewDistributor(name string, engine sim.Engine, consumers []string) *Distrib
 func (d *Distributor) Tick(now sim.VTimeInSec) bool {
 	msg := d.inputPort.Peek()
 	if msg == nil {
-		return true
+		// No messages available, return false to stop ticking
+		return false
 	}
 	
 	demoMsg, ok := msg.(*DemoMessage)
 	if !ok {
 		d.inputPort.Retrieve(now)
-		return true
+		// Invalid message consumed, continue ticking if more messages available
+		return d.inputPort.Peek() != nil
 	}
 	
 	outputPort, ok := d.outputPorts[demoMsg.Destination]
 	if !ok {
 		fmt.Printf("[%.2f] Distributor: Unknown destination %s\n", now, demoMsg.Destination)
 		d.inputPort.Retrieve(now)
-		return true
+		// Invalid destination, continue ticking if more messages available
+		return d.inputPort.Peek() != nil
 	}
 	
 	consumerPort, ok := d.consumerPorts[demoMsg.Destination]
 	if !ok {
 		fmt.Printf("[%.2f] Distributor: Consumer port not registered for %s\n", now, demoMsg.Destination)
 		d.inputPort.Retrieve(now)
-		return true
+		// Consumer port not registered, continue ticking if more messages available
+		return d.inputPort.Peek() != nil
 	}
 	
 	newMsg := &DemoMessage{
@@ -142,9 +146,13 @@ func (d *Distributor) Tick(now sim.VTimeInSec) bool {
 	if err == nil {
 		d.inputPort.Retrieve(now)
 		fmt.Printf("[%.2f] Distributor: Routed message to %s\n", now, demoMsg.Destination)
+		// Successfully sent message, continue ticking if more messages available
+		return d.inputPort.Peek() != nil
 	}
 	
-	return true
+	// Failed to send message (output port full), return false to stop ticking
+	// Will be woken up when the port becomes free
+	return false
 }
 
 // Consumer consumes messages at a fixed rate
@@ -172,25 +180,29 @@ func NewConsumer(name string, engine sim.Engine, consumeRate sim.VTimeInSec) *Co
 func (c *Consumer) Tick(now sim.VTimeInSec) bool {
 	// Check if enough time has passed since last consumption
 	if now-c.lastConsumed < c.consumeRate {
-		return true
+		// Not ready to consume yet, return false to stop ticking
+		return false
 	}
 	
 	msg := c.inputPort.Peek()
 	if msg == nil {
-		return true
+		// No messages available, return false to stop ticking
+		return false
 	}
 	
 	demoMsg, ok := msg.(*DemoMessage)
 	if !ok {
 		c.inputPort.Retrieve(now)
-		return true
+		// Invalid message consumed, continue ticking if more messages available
+		return c.inputPort.Peek() != nil
 	}
 	
 	c.inputPort.Retrieve(now)
 	c.lastConsumed = now
 	fmt.Printf("[%.2f] Consumer %s: Consumed message: %s\n", now, c.name, demoMsg.Content)
 	
-	return true
+	// Message consumed, continue ticking if more messages available
+	return c.inputPort.Peek() != nil
 }
 
 func main() {
@@ -242,11 +254,9 @@ func main() {
 	}
 	
 	// Kick off the ticking components
+	// Only the producer starts ticking at time 0
+	// Distributor and consumers will be woken up by message arrivals
 	producer.TickNow(0)
-	distributor.TickNow(0)
-	for _, consumer := range consumers {
-		consumer.TickNow(0)
-	}
 	
 	// Run simulation
 	fmt.Println("=== Starting Akita Demo Simulation ===")
