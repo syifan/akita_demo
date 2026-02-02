@@ -149,7 +149,7 @@ func (d *Distributor) Tick(now sim.VTimeInSec) bool {
 	newMsg := &DemoMessage{
 		Content:     demoMsg.Content,
 		Destination: demoMsg.Destination,
-		RemotePort:  demoMsg.RemotePort,
+		// RemotePort is not needed in forwarded message - it's only used for routing
 	}
 	newMsg.Meta().Src = outputPort
 	newMsg.Meta().Dst = demoMsg.RemotePort // Use the remote port from the message
