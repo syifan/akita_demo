@@ -50,6 +50,14 @@ By default, the simulation will run for 20 seconds of simulated time. You can sp
 ./akita_demo -cycles 50   # Run for 50 seconds
 ```
 
+You can also control the consumer processing rate using the `-consume-rate` flag:
+
+```bash
+./akita_demo -consume-rate 0.5   # Consumers process 1 message every 0.5 seconds (faster)
+./akita_demo -consume-rate 2.0   # Consumers process 1 message every 2 seconds (slower)
+./akita_demo -cycles 30 -consume-rate 0.5   # Combine flags
+```
+
 The simulation will show:
 - When the producer generates messages
 - How the distributor routes messages to specific consumers
@@ -62,7 +70,7 @@ The simulation will show:
 Simulation Duration: 20 cycles (seconds)
 Producer: Randomly generates messages (30% chance per tick)
 Distributor: Routes messages to correct consumer
-Consumers: Process messages at fixed rate (1 per second)
+Consumers: Process messages at rate (1 per 1.00 seconds)
 
 [4.00] Producer: Generated message for Consumer1
 [5.00] Distributor: Routed message to Consumer1
@@ -76,6 +84,8 @@ Consumers: Process messages at fixed rate (1 per second)
 
 - `-cycles <number>`: Set the simulation duration in cycles (seconds). Default is 20.
   - Example: `./akita_demo -cycles 10`
+- `-consume-rate <number>`: Set the consumer message processing rate (seconds between messages). Default is 1.0.
+  - Example: `./akita_demo -consume-rate 0.5`
 - `-h`: Display help message with all available options.
 
 ## Key Implementation Details
@@ -83,6 +93,6 @@ Consumers: Process messages at fixed rate (1 per second)
 - Messages contain a `Destination` field specifying which consumer should receive them
 - Producer generates traffic randomly (30% probability per tick)
 - Distributor maintains separate output ports for each consumer
-- Consumers enforce a fixed rate limit (1 second between processing messages)
+- Consumers enforce a configurable rate limit (default: 1 second between processing messages)
 - All components are connected via Akita's DirectConnection
 - The simulation uses ticking components that update every simulated second

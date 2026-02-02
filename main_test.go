@@ -145,3 +145,62 @@ func TestDistributorContinuesTickingWhenMoreMessages(t *testing.T) {
 		t.Errorf("Expected Distributor.Tick() to return true when more messages available, got %v", result)
 	}
 }
+
+// TestConsumerWithCustomConsumeRate verifies that consumers can be created
+// with different consume rates and respect those rates
+func TestConsumerWithCustomConsumeRate(t *testing.T) {
+	engine := sim.NewSerialEngine()
+	
+	// Create consumer with custom consume rate of 2.0 seconds
+	consumer := NewConsumer("Consumer1", engine, 2.0)
+	
+	// Send two messages to the consumer
+	msg := &DemoMessage{
+		Content:     "Test message",
+		Destination: "Consumer1",
+	}
+	msg.Meta().Src = nil
+	msg.Meta().Dst = consumer.inputPort
+	consumer.inputPort.Recv(msg)
+	
+	msg2 := &DemoMessage{
+		Content:     "Test message 2",
+		Destination: "Consumer1",
+	}
+	msg2.Meta().Src = nil
+	msg2.Meta().Dst = consumer.inputPort
+	consumer.inputPort.Recv(msg2)
+	
+	// Try to consume immediately at time 0 (should succeed and consume first message)
+	result := consumer.Tick(0)
+	if result != true {
+		t.Errorf("Expected Consumer.Tick() to return true at time 0 (more messages available), got %v", result)
+	}
+	
+	// Verify first message was consumed
+	if consumer.lastConsumed != 0 {
+		t.Errorf("Expected lastConsumed to be 0, got %v", consumer.lastConsumed)
+	}
+	
+	// Try to consume at time 1.0 (should fail - need 2.0 seconds to pass)
+	result = consumer.Tick(1.0)
+	if result != false {
+		t.Errorf("Expected Consumer.Tick() to return false at time 1.0 (rate limiting), got %v", result)
+	}
+	
+	// Verify no additional message was consumed
+	if consumer.lastConsumed != 0 {
+		t.Errorf("Expected lastConsumed to still be 0, got %v", consumer.lastConsumed)
+	}
+	
+	// Try to consume at time 2.0 (should succeed - 2.0 seconds have passed)
+	result = consumer.Tick(2.0)
+	if result != false {
+		t.Errorf("Expected Consumer.Tick() to return false at time 2.0 (consumed message, no more available), got %v", result)
+	}
+	
+	// Verify second message was consumed
+	if consumer.lastConsumed != 2.0 {
+		t.Errorf("Expected lastConsumed to be 2.0, got %v", consumer.lastConsumed)
+	}
+}
