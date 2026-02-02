@@ -71,9 +71,6 @@ func TestDistributorReturnsFalseWhenSendFails(t *testing.T) {
 	distributor := NewDistributor("Distributor", engine, consumerNames)
 	consumer := NewConsumer("Consumer1", engine, 1.0)
 	
-	// Register consumer port
-	distributor.consumerPorts["Consumer1"] = consumer.inputPort
-	
 	// Connect distributor output to consumer input
 	conn := sim.NewDirectConnection("TestConnection", engine, 1*sim.Hz)
 	conn.PlugIn(distributor.outputPorts["Consumer1"], 1)
@@ -83,15 +80,17 @@ func TestDistributorReturnsFalseWhenSendFails(t *testing.T) {
 	fillMsg := &DemoMessage{
 		Content:     "Fill message",
 		Destination: "Consumer1",
+		RemotePort:  consumer.inputPort,
 	}
 	fillMsg.Meta().Src = distributor.outputPorts["Consumer1"]
 	fillMsg.Meta().Dst = consumer.inputPort
 	distributor.outputPorts["Consumer1"].Send(fillMsg)
 	
-	// Now send a message to distributor's input
+	// Now send a message to distributor's input with final destination set
 	msg := &DemoMessage{
 		Content:     "Test message",
 		Destination: "Consumer1",
+		RemotePort:  consumer.inputPort, // Set remote port
 	}
 	msg.Meta().Src = nil
 	msg.Meta().Dst = distributor.inputPort
@@ -113,18 +112,16 @@ func TestDistributorContinuesTickingWhenMoreMessages(t *testing.T) {
 	distributor := NewDistributor("Distributor", engine, consumerNames)
 	consumer := NewConsumer("Consumer1", engine, 1.0)
 	
-	// Register consumer port
-	distributor.consumerPorts["Consumer1"] = consumer.inputPort
-	
 	// Connect distributor output to consumer input
 	conn := sim.NewDirectConnection("TestConnection", engine, 1*sim.Hz)
 	conn.PlugIn(distributor.outputPorts["Consumer1"], 1)
 	conn.PlugIn(consumer.inputPort, 1)
 	
-	// Send two messages to distributor's input
+	// Send two messages to distributor's input with final destination set
 	msg1 := &DemoMessage{
 		Content:     "Test message 1",
 		Destination: "Consumer1",
+		RemotePort:  consumer.inputPort, // Set remote port
 	}
 	msg1.Meta().Src = nil
 	msg1.Meta().Dst = distributor.inputPort
@@ -133,6 +130,7 @@ func TestDistributorContinuesTickingWhenMoreMessages(t *testing.T) {
 	msg2 := &DemoMessage{
 		Content:     "Test message 2",
 		Destination: "Consumer1",
+		RemotePort:  consumer.inputPort, // Set remote port
 	}
 	msg2.Meta().Src = nil
 	msg2.Meta().Dst = distributor.inputPort
