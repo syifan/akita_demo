@@ -6,9 +6,9 @@ import (
 	"github.com/sarchlab/akita/v3/sim"
 )
 
-// TestDistributorReturnsFlaseWhenNoMessages verifies that the distributor
+// TestDistributorReturnsFalseWhenNoMessages verifies that the distributor
 // returns false when there are no messages to process
-func TestDistributorReturnsFlaseWhenNoMessages(t *testing.T) {
+func TestDistributorReturnsFalseWhenNoMessages(t *testing.T) {
 	engine := sim.NewSerialEngine()
 	consumerNames := []string{"Consumer1"}
 	distributor := NewDistributor("Distributor", engine, consumerNames)
@@ -21,9 +21,9 @@ func TestDistributorReturnsFlaseWhenNoMessages(t *testing.T) {
 	}
 }
 
-// TestConsumerReturnsFlaseWhenNoMessages verifies that the consumer
+// TestConsumerReturnsFalseWhenNoMessages verifies that the consumer
 // returns false when there are no messages to consume
-func TestConsumerReturnsFlaseWhenNoMessages(t *testing.T) {
+func TestConsumerReturnsFalseWhenNoMessages(t *testing.T) {
 	engine := sim.NewSerialEngine()
 	consumer := NewConsumer("Consumer1", engine, 1.0)
 	
@@ -35,9 +35,9 @@ func TestConsumerReturnsFlaseWhenNoMessages(t *testing.T) {
 	}
 }
 
-// TestConsumerReturnsFlaseWhenRateLimiting verifies that the consumer
+// TestConsumerReturnsFalseWhenRateLimiting verifies that the consumer
 // returns false when rate limiting prevents consumption
-func TestConsumerReturnsFlaseWhenRateLimiting(t *testing.T) {
+func TestConsumerReturnsFalseWhenRateLimiting(t *testing.T) {
 	engine := sim.NewSerialEngine()
 	consumer := NewConsumer("Consumer1", engine, 1.0)
 	
@@ -63,9 +63,9 @@ func TestConsumerReturnsFlaseWhenRateLimiting(t *testing.T) {
 	}
 }
 
-// TestDistributorReturnsFlaseWhenSendFails verifies that the distributor
+// TestDistributorReturnsFalseWhenSendFails verifies that the distributor
 // returns false when it fails to send a message (output port full)
-func TestDistributorReturnsFlaseWhenSendFails(t *testing.T) {
+func TestDistributorReturnsFalseWhenSendFails(t *testing.T) {
 	engine := sim.NewSerialEngine()
 	consumerNames := []string{"Consumer1"}
 	distributor := NewDistributor("Distributor", engine, consumerNames)
