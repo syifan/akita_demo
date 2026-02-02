@@ -208,11 +208,17 @@ func (c *Consumer) Tick(now sim.VTimeInSec) bool {
 func main() {
 	// Parse command-line flags
 	cycles := flag.Int("cycles", 20, "Number of simulation cycles (seconds) to run")
+	consumeRate := flag.Float64("consume-rate", 1.0, "Consumer message processing rate (seconds between messages)")
 	flag.Parse()
 	
 	// Validate cycles value
 	if *cycles <= 0 {
 		log.Fatal("Error: cycles must be a positive number")
+	}
+	
+	// Validate consume rate value
+	if *consumeRate <= 0 {
+		log.Fatal("Error: consume-rate must be a positive number")
 	}
 	
 	// Create simulation engine
@@ -228,10 +234,10 @@ func main() {
 	// Set producer's destination to distributor's input port
 	producer.dstPort = distributor.inputPort
 	
-	// Create consumers with fixed consumption rate (1 message per second)
+	// Create consumers with configurable consumption rate
 	consumers := make([]*Consumer, len(consumerNames))
 	for i, name := range consumerNames {
-		consumers[i] = NewConsumer(name, engine, 1.0) // 1 second between messages
+		consumers[i] = NewConsumer(name, engine, sim.VTimeInSec(*consumeRate))
 	}
 	
 	// Connect producer to distributor
@@ -263,7 +269,7 @@ func main() {
 	fmt.Printf("Simulation Duration: %d cycles (seconds)\n", *cycles)
 	fmt.Println("Producer: Randomly generates messages (30% chance per tick)")
 	fmt.Println("Distributor: Routes messages to correct consumer")
-	fmt.Println("Consumers: Process messages at fixed rate (1 per second)")
+	fmt.Printf("Consumers: Process messages at rate (1 per %.2f seconds)\n", *consumeRate)
 	fmt.Println()
 	
 	err := engine.Run()
