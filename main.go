@@ -65,10 +65,18 @@ func (p *Producer) Tick(now sim.VTimeInSec) bool {
 		// Pick a random consumer as destination
 		dest := p.consumers[p.rand.Intn(len(p.consumers))]
 		
+		// Get the remote port for the destination
+		remotePort, ok := p.consumerPorts[dest]
+		if !ok {
+			// Consumer port not registered, skip this message
+			fmt.Printf("[%.2f] Producer: Consumer port not found for %s\n", now, dest)
+			return true
+		}
+		
 		msg := &DemoMessage{
 			Content:     fmt.Sprintf("Message at time %.2f", now),
 			Destination: dest,
-			RemotePort:  p.consumerPorts[dest], // Store the final destination port
+			RemotePort:  remotePort, // Store the final destination port
 		}
 		msg.Meta().Src = p.outputPort
 		msg.Meta().Dst = p.dstPort // Send to distributor (immediate hop)
@@ -125,6 +133,14 @@ func (d *Distributor) Tick(now sim.VTimeInSec) bool {
 		fmt.Printf("[%.2f] Distributor: Unknown destination %s\n", now, demoMsg.Destination)
 		d.inputPort.Retrieve(now)
 		// Invalid destination, continue ticking if more messages available
+		return d.inputPort.Peek() != nil
+	}
+	
+	// Validate that RemotePort is set
+	if demoMsg.RemotePort == nil {
+		fmt.Printf("[%.2f] Distributor: RemotePort not set for message to %s\n", now, demoMsg.Destination)
+		d.inputPort.Retrieve(now)
+		// Invalid message, continue ticking if more messages available
 		return d.inputPort.Peek() != nil
 	}
 	
