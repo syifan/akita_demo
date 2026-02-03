@@ -15,6 +15,7 @@ type DemoMessage struct {
 	meta        sim.MsgMeta
 	Content     string
 	Destination string
+	RemotePort  sim.Port // Final destination port (remote port)
 }
 
 // Meta returns the message metadata
@@ -31,19 +32,21 @@ func (m *DemoMessage) Clone() sim.Msg {
 // Producer generates messages randomly and sends to distributor
 type Producer struct {
 	*sim.TickingComponent
-	outputPort sim.Port
-	dstPort    sim.Port // Destination port (distributor's input)
-	consumers  []string
-	rand       *rand.Rand
-	stopTime   sim.VTimeInSec
+	outputPort    sim.Port
+	dstPort       sim.Port                 // Distributor's input port (immediate hop)
+	consumerPorts map[string]sim.Port      // Map consumer name to their input port (remote ports)
+	consumers     []string
+	rand          *rand.Rand
+	stopTime      sim.VTimeInSec
 }
 
 // NewProducer creates a new producer component
 func NewProducer(name string, engine sim.Engine, consumers []string, stopTime sim.VTimeInSec) *Producer {
 	p := &Producer{
-		consumers: consumers,
-		rand:      rand.New(rand.NewSource(time.Now().UnixNano())),
-		stopTime:  stopTime,
+		consumers:     consumers,
+		consumerPorts: make(map[string]sim.Port),
+		rand:          rand.New(rand.NewSource(time.Now().UnixNano())),
+		stopTime:      stopTime,
 	}
 	p.TickingComponent = sim.NewTickingComponent(name, engine, 1*sim.Hz, p)
 	p.outputPort = sim.NewLimitNumMsgPort(p, 1, name+".Out")
@@ -62,12 +65,21 @@ func (p *Producer) Tick(now sim.VTimeInSec) bool {
 		// Pick a random consumer as destination
 		dest := p.consumers[p.rand.Intn(len(p.consumers))]
 		
+		// Get the remote port for the destination
+		remotePort, ok := p.consumerPorts[dest]
+		if !ok {
+			// Consumer port not registered, skip this message
+			fmt.Printf("[%.2f] Producer: Consumer port not found for %s\n", now, dest)
+			return true
+		}
+		
 		msg := &DemoMessage{
 			Content:     fmt.Sprintf("Message at time %.2f", now),
 			Destination: dest,
+			RemotePort:  remotePort, // Store the final destination port
 		}
 		msg.Meta().Src = p.outputPort
-		msg.Meta().Dst = p.dstPort
+		msg.Meta().Dst = p.dstPort // Send to distributor (immediate hop)
 		msg.Meta().SendTime = now
 		
 		err := p.outputPort.Send(msg)
@@ -82,16 +94,14 @@ func (p *Producer) Tick(now sim.VTimeInSec) bool {
 // Distributor routes messages to the correct consumer
 type Distributor struct {
 	*sim.TickingComponent
-	inputPort      sim.Port
-	outputPorts    map[string]sim.Port
-	consumerPorts  map[string]sim.Port // Map from consumer name to their input ports
+	inputPort   sim.Port
+	outputPorts map[string]sim.Port
 }
 
 // NewDistributor creates a new distributor component
 func NewDistributor(name string, engine sim.Engine, consumers []string) *Distributor {
 	d := &Distributor{
-		outputPorts:   make(map[string]sim.Port),
-		consumerPorts: make(map[string]sim.Port),
+		outputPorts: make(map[string]sim.Port),
 	}
 	d.TickingComponent = sim.NewTickingComponent(name, engine, 1*sim.Hz, d)
 	d.inputPort = sim.NewLimitNumMsgPort(d, 10, name+".In")
@@ -126,20 +136,23 @@ func (d *Distributor) Tick(now sim.VTimeInSec) bool {
 		return d.inputPort.Peek() != nil
 	}
 	
-	consumerPort, ok := d.consumerPorts[demoMsg.Destination]
-	if !ok {
-		fmt.Printf("[%.2f] Distributor: Consumer port not registered for %s\n", now, demoMsg.Destination)
+	// Validate that RemotePort is set
+	if demoMsg.RemotePort == nil {
+		fmt.Printf("[%.2f] Distributor: RemotePort not set for message to %s\n", now, demoMsg.Destination)
 		d.inputPort.Retrieve(now)
-		// Consumer port not registered, continue ticking if more messages available
+		// Invalid message, continue ticking if more messages available
 		return d.inputPort.Peek() != nil
 	}
 	
+	// Forward the message using the RemotePort (final destination)
+	// No need to look up consumer port - it's already in the message
 	newMsg := &DemoMessage{
 		Content:     demoMsg.Content,
 		Destination: demoMsg.Destination,
+		// RemotePort is not needed in forwarded message - it's only used for routing
 	}
 	newMsg.Meta().Src = outputPort
-	newMsg.Meta().Dst = consumerPort
+	newMsg.Meta().Dst = demoMsg.RemotePort // Use the remote port from the message
 	newMsg.Meta().SendTime = now
 	
 	err := outputPort.Send(newMsg)
@@ -231,14 +244,19 @@ func main() {
 	producer := NewProducer("Producer", engine, consumerNames, sim.VTimeInSec(*cycles))
 	distributor := NewDistributor("Distributor", engine, consumerNames)
 	
-	// Set producer's destination to distributor's input port
-	producer.dstPort = distributor.inputPort
-	
 	// Create consumers with configurable consumption rate
 	consumers := make([]*Consumer, len(consumerNames))
 	for i, name := range consumerNames {
 		consumers[i] = NewConsumer(name, engine, sim.VTimeInSec(*consumeRate))
 	}
+	
+	// Register consumer ports with producer (remote ports)
+	for i, consumer := range consumers {
+		producer.consumerPorts[consumerNames[i]] = consumer.inputPort
+	}
+	
+	// Set producer's destination to distributor's input port (immediate hop)
+	producer.dstPort = distributor.inputPort
 	
 	// Connect producer to distributor
 	conn := sim.NewDirectConnection("ProducerToDistributor", engine, 1*sim.Hz)
@@ -247,9 +265,6 @@ func main() {
 	
 	// Connect distributor to consumers
 	for i, consumer := range consumers {
-		// Register consumer input port with distributor
-		distributor.consumerPorts[consumerNames[i]] = consumer.inputPort
-		
 		conn := sim.NewDirectConnection(
 			fmt.Sprintf("DistributorTo%s", consumerNames[i]),
 			engine,
